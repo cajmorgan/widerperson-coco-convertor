@@ -101,7 +101,6 @@ class Converter():
                 })
 
                 self.annotation_id += 1
-
             self.image_id += 1
 
         return coco_output
