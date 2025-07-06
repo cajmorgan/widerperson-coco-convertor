@@ -1,6 +1,8 @@
 
 
+import json
 import os
+import shutil
 from typing import List, Literal
 
 import PIL
@@ -14,19 +16,28 @@ class Converter():
     paths = []
     image_id = 1
     annotation_id = 1
+    split = "train"
 
-    def __init__(self, split: Literal["train", "val"]):
+    def __init__(self):
         self.cwd = os.getcwd()
         train_txt_path = f"{self.cwd}/data/WiderPerson/train.txt"
         val_txt_path = f"{self.cwd}/data/WiderPerson/val.txt"
 
-        train_image_paths = self.__get_image_paths(train_txt_path)
-        val_image_paths = self.__get_image_paths(val_txt_path)
+        self.train_image_paths = self.__get_image_paths(train_txt_path)
+        self.val_image_paths = self.__get_image_paths(val_txt_path)
 
-        if split == "train":
-            self.paths = train_image_paths
-        else:
-            self.paths = val_image_paths
+        self.annotations_path = f"{self.cwd}/out/annotations/"
+        self.train_path = f"{self.cwd}/out/train2017/"
+        self.val_path = f"{self.cwd}/out/val2017/"
+
+        # Create files etc
+        shutil.rmtree(f"{self.annotations_path}", ignore_errors=True)
+        shutil.rmtree(f"{self.train_path}", ignore_errors=True)
+        shutil.rmtree(f"{self.val_path}", ignore_errors=True)
+
+        os.mkdir(f"{self.annotations_path}")
+        os.mkdir(f"{self.train_path}")
+        os.mkdir(f"{self.val_path}")
 
     def __get_image_paths(self, txt_path):
         with open(txt_path, "r") as f:
@@ -34,7 +45,12 @@ class Converter():
 
         return paths
 
-    def create_annotation_split(self):
+    def create_annotation_split(self, split: Literal["train", "val"]):
+        self.split = split
+        if split == "train":
+            self.paths = self.train_image_paths
+        else:
+            self.paths = self.val_image_paths
 
         coco_output = {
             "info": {
@@ -62,10 +78,13 @@ class Converter():
             ]
         }
 
+        image_base_path = f"{self.cwd}/out/{split}2017"
+
         for path in self.paths:
             base_path = f"{self.cwd}/data/WiderPerson"
 
             image = PIL.Image.open(f"{base_path}/Images/{path}.jpg")
+            image.save(f"{image_base_path}/{path}.jpg")
             width, height = image.size
 
             image_json = {
@@ -99,15 +118,13 @@ class Converter():
                     "area": bbox_width * bbox_height,
                     "iscrowd": 0
                 })
-
                 self.annotation_id += 1
             self.image_id += 1
 
-        return coco_output
+        with open(f"{self.annotations_path}/instances_{self.split}2017.json", "w") as f:
+            f.write(json.dumps(coco_output))
 
 
-converter = Converter("train")
-
-out = converter.create_annotation_split()
-
-print(out)
+converter = Converter()
+converter.create_annotation_split("train")
+converter.create_annotation_split("val")
